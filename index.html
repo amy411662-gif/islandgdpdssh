@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GDP 模擬器：島嶼經濟的兩面鏡子</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #0f172a;
+            /* 加入使用者提供的背景圖，並加上一層半透明深色遮罩以確保文字與遊戲介面可讀性 */
+            background-image: linear-gradient(rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.8)), url('ChatGPT Image 2026年6月3日 上午10_51_52.png');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .portal-glow {
+            box-shadow: 0 0 30px rgba(99, 102, 241, 0.5);
+        }
+        .game-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .game-card:hover {
+            transform: translateY(-4px);
+        }
+        @keyframes pulse-slow {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+        .pulse-element {
+            animation: pulse-slow 3s infinite ease-in-out;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        .floating-ball {
+            animation: float 4s infinite ease-in-out;
+        }
+        /* 震動特效 */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        .shake-effect {
+            animation: shake 0.5s;
+        }
+        /* 綠光閃爍 */
+        @keyframes success-flash {
+            0%, 100% { background-color: rgba(30, 41, 59, 0.7); }
+            50% { background-color: rgba(16, 185, 129, 0.2); }
+        }
+        .success-flash-active {
+            animation: success-flash 0.6s ease-in-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+    <!-- 頂部導覽列 -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-600 p-2 rounded-lg text-white font-bold text-xl tracking-wider">島</div>
+                <div>
+                    <h1 class="text-lg font-bold text-slate-100">GDP 模擬器</h1>
+                    <p class="text-xs text-slate-400">高中公民與社會科互動教具</p>
+                </div>
+            </div>
+            
+            <!-- 目前狀態儀表 -->
+            <div class="flex items-center space-x-6 text-sm">
+                <div class="flex items-center space-x-2">
+                    <span class="text-slate-400">幸福度:</span>
+                    <div class="w-24 bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
+                        <div id="header-happiness-bar" class="bg-emerald-500 h-full transition-all duration-300" style="width: 80%"></div>
+                    </div>
+                    <span id="header-happiness-val" class="font-bold text-emerald-400">80%</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="text-slate-400">環境汙染:</span>
+                    <div class="w-24 bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
+                        <div id="header-pollution-bar" class="bg-rose-500 h-full transition-all duration-300" style="width: 10%"></div>
+                    </div>
+                    <span id="header-pollution-val" class="font-bold text-rose-400">10%</span>
+                </div>
+                <div class="bg-slate-800 px-3 py-1 rounded-md text-indigo-400 font-mono font-bold" id="current-phase-badge">
+                    準備階段
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主遊戲區 -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 flex flex-col justify-center">
+        
+        <!-- 歡迎畫面/大廳 -->
+        <div id="screen-welcome" class="max-w-3xl mx-auto text-center py-12 px-6 glass-panel rounded-3xl shadow-2xl relative overflow-hidden">
+            <div class="absolute -top-24 -left-24 w-48 h-48 bg-indigo-600/20 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-emerald-600/20 rounded-full blur-3xl"></div>
+            
+            <div class="mb-6 inline-block bg-indigo-500/10 p-4 rounded-full border border-indigo-500/30 pulse-element">
+                <i class="fa-solid fa-chart-line text-5xl text-indigo-400"></i>
+            </div>
+            <h2 class="text-4xl font-extrabold mb-4 tracking-tight">島嶼經濟的兩面鏡子</h2>
+            <p class="text-slate-300 text-lg mb-8 max-w-xl mx-auto leading-relaxed">
+                歡迎來到「經濟島」！你將擔任本島的最高經濟決策官。透過三大關卡，你將親身體驗 GDP 的定義、兩種計算面向（支出面與所得面），以及 GDP 統計數據背後的真實局限性。
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 text-left">
+                <div class="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                    <div class="text-indigo-400 font-bold mb-1"><i class="fa-solid fa-circle-1 mr-1"></i> 第一關：GDP傳送門</div>
+                    <p class="text-xs text-slate-400">考驗你對 GDP 基礎定義的辨析能力，精準過濾非 GDP 交易。</p>
+                </div>
+                <div class="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                    <div class="text-amber-400 font-bold mb-1"><i class="fa-solid fa-circle-2 mr-1"></i> 第二關：經濟大雙拼</div>
+                    <p class="text-xs text-slate-400">體驗一條龍的經濟流動，挑戰將「支出面」與「所得面」完美平衡！</p>
+                </div>
+                <div class="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                    <div class="text-rose-400 font-bold mb-1"><i class="fa-solid fa-circle-3 mr-1"></i> 第三關：黑天鵝事件</div>
+                    <p class="text-xs text-slate-400">面對全球經濟危機與災難，反思 GDP 的局限性與代價。</p>
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="px-8 py-4 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-indigo-500/20 transition-all duration-300 transform hover:-translate-y-0.5">
+                開始建設島嶼 <i class="fa-solid fa-play ml-2"></i>
+            </button>
+        </div>
+
+        <!-- 第一關：GDP 傳送門 -->
+        <div id="screen-level1" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            
+            <!-- 左側說明與控制項 -->
+            <div class="lg:col-span-4 flex flex-col justify-between glass-panel p-6 rounded-2xl">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">LEVEL 1 基礎知識</span>
+                    <h3 class="text-2xl font-black mt-1 mb-3">GDP 傳送門</h3>
+                    <p class="text-sm text-slate-300 leading-relaxed mb-4">
+                        上方會飄下不同的「經濟活動小球」。請利用下方的判定按鈕，或拖曳小球（電腦版），來決定該活動是否能<b>「計入本島的 GDP」</b>。
+                    </p>
+                    <div class="space-y-2 mb-4">
+                        <div class="flex items-center text-xs text-slate-400">
+                            <span class="w-3 h-3 bg-emerald-500 rounded-full mr-2"></span>
+                            答對：增加島嶼 GDP
+                        </div>
+                        <div class="flex items-center text-xs text-slate-400">
+                            <span class="w-3 h-3 bg-rose-500 rounded-full mr-2"></span>
+                            答錯：扣除國民幸福度，並觸發教學解析
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 回饋看板 -->
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800 my-4 flex-grow flex flex-col justify-center">
+                    <div class="text-center">
+                        <p class="text-xs text-slate-400 uppercase">目前累計 GDP</p>
+                        <p class="text-3xl font-mono font-black text-indigo-400" id="l1-gdp-val">$0</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mt-4 text-center">
+                        <div class="bg-slate-800/50 p-2 rounded-lg">
+                            <p class="text-xxs text-slate-400">已處理</p>
+                            <p class="text-lg font-bold text-slate-200" id="l1-processed">0/8</p>
+                        </div>
+                        <div class="bg-slate-800/50 p-2 rounded-lg">
+                            <p class="text-xxs text-slate-400">正確率</p>
+                            <p class="text-lg font-bold text-slate-200" id="l1-accuracy">0%</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-xs text-slate-400 italic text-center">
+                    提示：GDP 核心定義：一國在「一定期間」內，「常住境內」所生產的「最終商品與勞務」的「市場價值」。
+                </div>
+            </div>
+
+            <!-- 中央傳送門主區 -->
+            <div id="l1-main-panel" class="lg:col-span-8 glass-panel p-6 rounded-2xl flex flex-col justify-between relative overflow-hidden min-h-[450px]">
+                
+                <!-- 引導教學遮罩 -->
+                <div id="l1-explanation-modal" class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-20 flex flex-col justify-center items-center p-8 hidden">
+                    <div class="max-w-md w-full bg-slate-900 border border-slate-700 rounded-2xl p-6 text-center">
+                        <div id="l1-modal-icon-container" class="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center text-3xl">
+                            <!-- 動態圖標 -->
+                        </div>
+                        <h4 class="text-xl font-bold mb-2" id="l1-modal-title">解析說明</h4>
+                        <p class="text-sm text-slate-300 mb-6 leading-relaxed" id="l1-modal-text">經濟學解析內容...</p>
+                        <button onclick="dismissL1Explanation()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all">
+                            懂了，繼續下一題！
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 頂部與背景動態效果 -->
+                <div class="flex justify-between items-center mb-6">
+                    <span class="text-xs text-slate-400">挑戰進度：<span id="l1-progress-num">1</span> / 8</span>
+                    <span class="text-xs font-mono text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded" id="l1-concept-tag">定義辨析</span>
+                </div>
+
+                <!-- 球體掉落/顯示區 -->
+                <div class="flex-grow flex flex-col items-center justify-center relative py-8">
+                    <!-- 傳送門發光背景 -->
+                    <div class="absolute w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl portal-glow"></div>
+                    
+                    <!-- 目前的經濟活動球 (大卡片形式確保手機好按好讀) -->
+                    <div id="l1-ball-card" class="relative z-10 w-full max-w-md bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 p-6 rounded-2xl shadow-xl flex flex-col justify-between h-48 game-card transform">
+                        <div class="flex items-start justify-between">
+                            <span class="bg-indigo-600/20 text-indigo-400 text-xxs font-bold px-2 py-1 rounded">
+                                本島發生事件
+                            </span>
+                            <span class="text-indigo-400 font-mono font-bold" id="l1-card-value">$50億</span>
+                        </div>
+                        <h4 class="text-lg font-bold text-slate-100 my-4 text-center leading-snug" id="l1-card-desc">
+                            台積電在美國亞利桑那州設廠的年度產值
+                        </h4>
+                        <div class="text-center text-xs text-slate-400">
+                            請判斷此活動是否計入「台灣的 GDP」？
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 判定按鈕（最適合手機操作） -->
+                <div class="grid grid-cols-2 gap-4 mt-6 relative z-10">
+                    <button onclick="submitL1Decision(true)" class="py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center space-x-2 transition-all active:scale-95 shadow-lg shadow-emerald-900/20">
+                        <i class="fa-solid fa-circle-check text-xl"></i>
+                        <span>計入 GDP</span>
+                    </button>
+                    <button onclick="submitL1Decision(false)" class="py-4 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl flex items-center justify-center space-x-2 transition-all active:scale-95 shadow-lg shadow-rose-900/20">
+                        <i class="fa-solid fa-circle-xmark text-xl"></i>
+                        <span>不計入 GDP</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第二關：經濟大雙拼 (支出面 vs 所得面) -->
+        <div id="screen-level2" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            
+            <!-- 左側控制台與決策按鈕 -->
+            <div class="lg:col-span-5 flex flex-col justify-between glass-panel p-6 rounded-2xl">
+                <div>
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-xs font-bold uppercase tracking-wider text-amber-400">LEVEL 2 核心運作</span>
+                            <h3 class="text-2xl font-black mt-1 mb-2">經濟大雙拼</h3>
+                        </div>
+                        <!-- 計時器 -->
+                        <div class="bg-slate-800 text-amber-400 px-3 py-1.5 rounded-lg border border-slate-700 font-mono font-bold text-sm">
+                            剩餘時間: <span id="l2-timer">90</span>s
+                        </div>
+                    </div>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-4">
+                        任何一個經濟活動，從「買方花錢」的角度看是<b>支出面</b>，從「賣方賺錢」的角度看就是<b>所得面</b>，兩者在理論上應完全等高（所得恆等式：支出 = 所得）。
+                    </p>
+                    <div class="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs text-slate-300 mb-4">
+                        <strong class="text-indigo-400"><i class="fa-solid fa-bullseye mr-1"></i> 任務目標：</strong>
+                        在時間結束前，利用下方三個大按鈕推動島嶼經濟。讓右側<b>【支出面】與【所得面】完美等高</b>。注意你手頭的可用資金！
+                    </div>
+
+                    <!-- 資金看板 -->
+                    <div class="grid grid-cols-2 gap-3 mb-4">
+                        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800 text-center">
+                            <p class="text-xxs text-slate-400">家庭儲蓄/資金</p>
+                            <p class="text-xl font-bold text-emerald-400 font-mono" id="l2-family-funds">$1000</p>
+                        </div>
+                        <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-800 text-center">
+                            <p class="text-xxs text-slate-400">島嶼總 GDP</p>
+                            <p class="text-xl font-bold text-indigo-400 font-mono" id="l2-total-gdp">$0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 決策大按鈕 -->
+                <div class="space-y-3">
+                    <!-- 家庭：消費 -->
+                    <button onclick="triggerL2Action('consumption')" class="w-full p-4 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-xl text-left transition-all active:scale-98 flex items-center justify-between group">
+                        <div class="flex items-center space-x-3">
+                            <div class="p-2 bg-blue-500/10 text-blue-400 rounded-lg group-hover:bg-blue-500/20">
+                                <i class="fa-solid fa-cart-shopping text-lg"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm text-slate-200">【家庭】購買消費品</h4>
+                                <p class="text-xxs text-slate-400">花費 50 點。推動消費，帶來企業利潤。</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs bg-slate-900 px-2 py-1 rounded text-blue-300 font-mono font-bold">- $50</span>
+                        </div>
+                    </button>
+
+                    <!-- 企業：發薪 -->
+                    <button onclick="triggerL2Action('salary')" class="w-full p-4 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-xl text-left transition-all active:scale-98 flex items-center justify-between group">
+                        <div class="flex items-center space-x-3">
+                            <div class="p-2 bg-amber-500/10 text-amber-400 rounded-lg group-hover:bg-amber-500/20">
+                                <i class="fa-solid fa-wallet text-lg"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm text-slate-200">【企業】向家庭支付薪資</h4>
+                                <p class="text-xxs text-slate-400">花費 100 點。增加受雇人員報酬，資金回流家庭。</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs bg-slate-900 px-2 py-1 rounded text-amber-300 font-mono font-bold">- $100</span>
+                        </div>
+                    </button>
+
+                    <!-- 政府：蓋高鐵 -->
+                    <button onclick="triggerL2Action('infra')" class="w-full p-4 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 rounded-xl text-left transition-all active:scale-98 flex items-center justify-between group">
+                        <div class="flex items-center space-x-3">
+                            <div class="p-2 bg-purple-500/10 text-purple-400 rounded-lg group-hover:bg-purple-500/20">
+                                <i class="fa-solid fa-train text-lg"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-sm text-slate-200">【政府】蓋高鐵公共建設</h4>
+                                <p class="text-xxs text-slate-400">花費 300 點。增加政府支出，企業與家庭共同獲利。</p>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs bg-slate-900 px-2 py-1 rounded text-purple-300 font-mono font-bold">- $300</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 右側即時動態天平 (數據對照區) -->
+            <div id="l2-main-panel" class="lg:col-span-7 glass-panel p-6 rounded-2xl flex flex-col justify-between">
+                <div class="text-center mb-4">
+                    <span class="text-xs text-slate-400">國家經濟天平：雙向驗證與除錯</span>
+                </div>
+
+                <!-- 雙大柱狀圖呈現 -->
+                <div class="flex-grow grid grid-cols-2 gap-8 items-end h-[280px] bg-slate-950/40 p-4 rounded-xl border border-slate-800/80 relative">
+                    
+                    <!-- 支出面大柱 -->
+                    <div class="h-full flex flex-col justify-end items-center relative">
+                        <div id="bar-expenditure" class="w-16 md:w-24 bg-gradient-to-t from-blue-600 to-indigo-500 rounded-t-lg transition-all duration-300 relative group flex items-end justify-center" style="height: 0%">
+                            <div class="absolute -top-8 bg-blue-500 text-white font-mono font-bold text-xs px-2 py-0.5 rounded shadow" id="bar-exp-value">$0</div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <p class="font-black text-sm text-blue-400">支出面 GDP</p>
+                            <p class="text-xxs text-slate-400">C + I + G + (X-M)</p>
+                        </div>
+                    </div>
+
+                    <!-- 所得面大柱 -->
+                    <div class="h-full flex flex-col justify-end items-center relative">
+                        <div id="bar-income" class="w-16 md:w-24 bg-gradient-to-t from-amber-600 to-amber-500 rounded-t-lg transition-all duration-300 relative group flex items-end justify-center" style="height: 0%">
+                            <div class="absolute -top-8 bg-amber-500 text-slate-950 font-mono font-bold text-xs px-2 py-0.5 rounded shadow" id="bar-inc-value">$0</div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <p class="font-black text-sm text-amber-400">所得面 GDP</p>
+                            <p class="text-xxs text-slate-400">工資+租金+利息+利潤+...</p>
+                        </div>
+                    </div>
+
+                    <!-- 等高輔助虛線 -->
+                    <div class="absolute left-0 right-0 border-t border-dashed border-slate-600/30 pointer-events-none" style="bottom: 50%" id="helper-line-50"></div>
+                </div>
+
+                <!-- 底部細分數據 -->
+                <div class="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-slate-800">
+                    <!-- 支出面细項 -->
+                    <div class="space-y-1.5 text-xs">
+                        <div class="flex justify-between text-slate-400">
+                            <span>民間消費 (C):</span>
+                            <span id="val-c" class="font-mono font-bold text-blue-300">$0</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>國內投資 (I):</span>
+                            <span id="val-i" class="font-mono font-bold text-blue-300">$0</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>政府支出 (G):</span>
+                            <span id="val-g" class="font-mono font-bold text-blue-300">$0</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>淨出口 (X-M):</span>
+                            <span id="val-xm" class="font-mono font-bold text-blue-300">$0</span>
+                        </div>
+                    </div>
+
+                    <!-- 所得面細項 -->
+                    <div class="space-y-1.5 text-xs">
+                        <div class="flex justify-between text-slate-400">
+                            <span>受雇人員報酬(工資):</span>
+                            <span id="val-wage" class="font-mono font-bold text-amber-300">$0</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>營業盈餘(利潤):</span>
+                            <span id="val-profit" class="font-mono font-bold text-amber-300">$0</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>租金、利息與其他:</span>
+                            <span id="val-rent" class="font-mono font-bold text-amber-300">$0</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>折舊與間接稅:</span>
+                            <span id="val-tax" class="font-mono font-bold text-amber-300">$0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第三關：黑天鵝事件 (GDP 的局限性) -->
+        <div id="screen-level3" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+            
+            <!-- 左側緊急說明與事件大卡 -->
+            <div class="lg:col-span-5 flex flex-col justify-between glass-panel p-6 rounded-2xl relative overflow-hidden border-rose-500/30">
+                <!-- 紅色警報微光 -->
+                <div class="absolute -top-24 -left-24 w-48 h-48 bg-rose-500/10 rounded-full blur-3xl animate-pulse"></div>
+
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-rose-400 flex items-center">
+                        <span class="w-2 h-2 bg-rose-500 rounded-full animate-ping mr-2"></span>
+                        LEVEL 3 全球危機
+                    </span>
+                    <h3 class="text-2xl font-black mt-1 mb-2">黑天鵝事件！</h3>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-4">
+                        本島突發紧急狀況！隔壁暴風雨引發嚴重水患，對方政府開出巨額訂單，向我們<b>瘋狂採購本島生產的「抽水機」</b>！
+                    </p>
+                    
+                    <!-- 任務卡 -->
+                    <div class="p-4 bg-rose-950/40 border border-rose-800/60 rounded-xl text-xs mb-4">
+                        <strong class="text-rose-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i> 決策任務：</strong>
+                        在 15 秒的時間內，<b>拼命點擊「出口抽水機」按鈕</b>！盡最大可能衝高我國出口量 (X)！讓我們看見令人震撼的 GDP 成長奇蹟！
+                    </div>
+                </div>
+
+                <!-- 狀態回饋 (此時汙染會悄悄上升...) -->
+                <div class="bg-slate-900/60 p-4 rounded-xl border border-slate-800/80 my-4 space-y-3">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-slate-400">出口額度 (X):</span>
+                        <span class="font-mono font-bold text-rose-400 text-sm" id="l3-export-counter">$0 億</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-slate-400">總 GDP 預估:</span>
+                        <span class="font-mono font-bold text-indigo-400 text-sm" id="l3-gdp-counter">$1200 億</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-slate-400">環境汙染指標:</span>
+                        <span class="font-mono font-bold text-amber-500 text-sm" id="l3-pollution-counter">10%</span>
+                    </div>
+                </div>
+
+                <div class="text-xs text-slate-500 text-center italic">
+                    不要停止點擊，直到時間歸零！
+                </div>
+            </div>
+
+            <!-- 右側瘋狂點擊與 GDP 噴發看板 -->
+            <div class="lg:col-span-7 glass-panel p-6 rounded-2xl flex flex-col justify-between min-h-[400px]">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-xs text-slate-400">全島工廠火速開工中</span>
+                    <span class="text-xs font-mono font-bold text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded" id="l3-timer">15s</span>
+                </div>
+
+                <!-- GDP 柱體瞬間暴漲特效 -->
+                <div class="flex-grow flex items-end justify-center bg-slate-950/50 p-6 rounded-xl border border-slate-900 relative overflow-hidden">
+                    
+                    <!-- 粒子與背景光特效 -->
+                    <div class="absolute inset-0 bg-gradient-to-t from-rose-950/20 to-transparent pointer-events-none"></div>
+
+                    <div class="w-32 bg-gradient-to-t from-rose-600 via-indigo-600 to-indigo-400 rounded-t-xl transition-all duration-75 relative flex items-end justify-center" id="l3-gdp-bar" style="height: 30%">
+                        <!-- 動態飛揚的數字 -->
+                        <div class="absolute -top-12 bg-rose-600 text-white font-mono font-black text-sm px-3 py-1 rounded shadow-lg animate-bounce" id="l3-gdp-bar-val">
+                            $1,200 億
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 瘋狂點擊按鈕 -->
+                <div class="mt-6">
+                    <button onclick="clickExportPump()" class="w-full py-6 bg-gradient-to-r from-rose-600 to-amber-500 hover:from-rose-500 hover:to-amber-400 text-slate-950 font-black text-2xl rounded-2xl transition-all active:scale-95 shadow-xl shadow-rose-900/30 tracking-wider flex flex-col items-center justify-center">
+                        <span><i class="fa-solid fa-industry mr-2 animate-spin"></i> 瘋狂出口抽水機！</span>
+                        <span class="text-xs font-medium text-slate-900/80 mt-1">每次點擊：出口額 + $50 億，工廠全力運轉</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 最終結算與反思面板 -->
+        <div id="screen-report" class="hidden max-w-4xl mx-auto py-8 px-6 glass-panel rounded-3xl shadow-2xl relative overflow-hidden">
+            <div class="text-center mb-8">
+                <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">經濟報告書</span>
+                <h2 class="text-3xl font-extrabold mt-1">島嶼年度總結算與反思</h2>
+            </div>
+
+            <!-- 分數指標看板 -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 text-center">
+                <!-- 最終GDP -->
+                <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+                    <div class="text-indigo-400 text-2xl mb-1"><i class="fa-solid fa-chart-simple"></i></div>
+                    <p class="text-xs text-slate-400 uppercase">年度最終 GDP</p>
+                    <p class="text-3xl font-mono font-black text-indigo-400 mt-1" id="report-gdp">$0</p>
+                    <p class="text-xxs text-emerald-400 mt-1"><i class="fa-solid fa-arrow-trend-up"></i> 創下本島歷史新高！</p>
+                </div>
+
+                <!-- 國民幸福度 -->
+                <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+                    <div class="text-rose-400 text-2xl mb-1" id="report-happiness-icon"><i class="fa-solid fa-face-frown"></i></div>
+                    <p class="text-xs text-slate-400 uppercase">國民幸福度</p>
+                    <p class="text-3xl font-mono font-black text-rose-400 mt-1" id="report-happiness">0%</p>
+                    <p class="text-xxs text-rose-400 mt-1" id="report-happiness-sub">島民過度加班，幸福感崩盤</p>
+                </div>
+
+                <!-- 環境汙染度 -->
+                <div class="bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+                    <div class="text-amber-500 text-2xl mb-1"><i class="fa-solid fa-smog"></i></div>
+                    <p class="text-xs text-slate-400 uppercase">環境生態破壞率</p>
+                    <p class="text-3xl font-mono font-black text-amber-500 mt-1" id="report-pollution">100%</p>
+                    <p class="text-xxs text-amber-500 mt-1">重污染生產，島嶼生態告急</p>
+                </div>
+            </div>
+
+            <!-- 綜合評語 -->
+            <div class="bg-rose-950/30 border border-rose-900/50 rounded-2xl p-6 mb-8">
+                <h4 class="text-lg font-bold text-rose-400 mb-2 flex items-center">
+                    <i class="fa-solid fa-scale-unbalanced mr-2"></i> 診斷報告：【慘勝的經濟奇蹟】
+                </h4>
+                <p class="text-sm text-slate-300 leading-relaxed" id="report-diagnosis-text">
+                    恭喜你創造了史詩級的 GDP 新高！但是……因為全島工廠連續無休開工、過度排放汙水和廢氣，雖然帳面上的出口額與 GDP 非常耀眼，但你的國民幸福度降為 0，環境汙染度爆表。這是一個極端的「以生態與健康換取產值」的典型例子。
+                </p>
+            </div>
+
+            <!-- 高中公民科考點解析 (反思引導) -->
+            <div class="bg-slate-900/80 p-6 rounded-2xl border border-slate-700/80 mb-8 space-y-4">
+                <h4 class="text-lg font-bold text-slate-200 border-b border-slate-800 pb-2"><i class="fa-solid fa-graduation-cap mr-2 text-indigo-400"></i> 公民科核心反思（課堂討論重點）</h4>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs leading-relaxed text-slate-300">
+                    <div class="p-3 bg-slate-800/40 rounded-xl">
+                        <strong class="text-indigo-300 block mb-1">Q1. GDP 能不能反映國民福利與幸福？</strong>
+                        GDP 只統計「有市場交易」的活動，無法衡量：
+                        <ul class="list-disc list-inside mt-1 space-y-0.5 text-slate-400">
+                            <li>島民被迫超時加班喪失的<b>「休閒時間」</b>。</li>
+                            <li>島民的身心健康與生活品質。</li>
+                        </ul>
+                    </div>
+                    <div class="p-3 bg-slate-800/40 rounded-xl">
+                        <strong class="text-indigo-300 block mb-1">Q2. GDP 與環境綠色成本的衝突？</strong>
+                        GDP 是一隻「近視」的怪獸。在遊戲第三關中，工廠瘋狂排汙生產，GDP 會增加；事後政府花大筆資金進行環境整治，這筆整治費用<b>又會被算入 GDP 支出面 (G)</b>！這種「重複計算卻帶來危害」的缺陷，促成了近年「綠色 GDP」的提倡。
+                    </div>
+                    <div class="p-3 bg-slate-800/40 rounded-xl">
+                        <strong class="text-indigo-300 block mb-1">Q3. 第一關的「地下經濟」去哪了？</strong>
+                        第一關中，「沒開發票的攤販」或「媽媽在家打掃」不算入 GDP，說明 GDP 無法精準統計未經市場交易、或刻意逃漏稅的<b>「地下經濟」</b>，這會低估一個國家的實質生產活動。
+                    </div>
+                    <div class="p-3 bg-slate-800/40 rounded-xl">
+                        <strong class="text-indigo-300 block mb-1">Q4. 「所得面」與「支出面」的實踐？</strong>
+                        第二關中我們看到：任何消費支出，最後都會轉為某人的所得。若兩者算出來不一樣，代表有些交易沒記在帳上（地下經濟或漏報），這正是政府在統計國民所得帳時的最大挑戰。
+                    </div>
+                </div>
+            </div>
+
+            <!-- 按鈕控制 -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button onclick="resetGame()" class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl transition-all">
+                    重新遊玩 <i class="fa-solid fa-rotate-left ml-1"></i>
+                </button>
+                <a href="javascript:window.print();" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-center transition-all">
+                    列印/儲存學習診斷單 <i class="fa-solid fa-print ml-1"></i>
+                </a>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 底部資訊與版權 -->
+    <footer class="bg-slate-950 py-4 px-4 text-center text-slate-500 text-xs border-t border-slate-900 mt-12">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center space-y-2 md:space-y-0">
+            <p>© 2026 經濟島大亨. 專為中學公民與社會科「國民所得與經濟成長」單元設計之網頁教學工具</p>
+            <p>設計理念：以遊戲化（Gamification）體現支出面與所得面恆等式、與 GDP 侷限性</p>
+        </div>
+    </footer>
+
+    <!-- 提示框 / 音效警報模擬 (客製化訊息盒，不使用瀏覽器 alert) -->
+    <div id="toast-message" class="fixed bottom-6 right-6 z-50 glass-panel p-4 rounded-xl shadow-2xl max-w-sm border-l-4 border-indigo-500 translate-y-24 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="flex items-start space-x-3">
+            <div id="toast-icon" class="text-indigo-400 text-xl">
+                <i class="fa-solid fa-bell"></i>
+            </div>
+            <div>
+                <h5 class="font-bold text-sm text-slate-100" id="toast-title">提示</h5>
+                <p class="text-xs text-slate-400 mt-1 leading-normal" id="toast-body">這是一條提示訊息。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 遊戲邏輯 Javascript 實作 -->
+    <script>
+        // --- 核心遊戲狀態管理 ---
+        let state = {
+            currentScreen: 'welcome', // welcome, level1, level2, level3, report
+            happiness: 80,
+            pollution: 10,
+            
+            // 第一關數據
+            l1: {
+                currentIndex: 0,
+                gdp: 0,
+                correctCount: 0,
+                processedCount: 0,
+                questions: [
+                    {
+                        desc: "台積電在美國亞利桑那州設廠的年度產值",
+                        value: 200,
+                        isGDP: false,
+                        reason: "不計入。GDP 為屬地主義（在境內）。台積電在美國設廠的產值，屬於美國境內生產的，應計入美國的 GDP。若要計入台灣，則需使用 GNP/GNI 的概念。"
+                    },
+                    {
+                        desc: "媽媽平常在家打掃衛生與整理家務的勞務價值",
+                        value: 50,
+                        isGDP: false,
+                        reason: "不計入。媽媽在家打掃屬於「非市場交易」的活動，由於缺乏市場客觀估價，通常不予計入 GDP 中。這也是 GDP 無法呈現家庭無給職勞務價值的缺陷。"
+                    },
+                    {
+                        desc: "新創公司在本島購買全新生產線機器設備的支出",
+                        value: 300,
+                        isGDP: true,
+                        reason: "計入。這屬於支出面公式中的「國內投資 (I)」，是本島境內新生產的最終資本財，完全符合 GDP 的定義。"
+                    },
+                    {
+                        desc: "阿明在跳蚤市場上出售自己使用過的二手智慧型手機",
+                        value: 10,
+                        isGDP: false,
+                        reason: "不計入。二手商品的交易，僅是資產的所有權發生轉移，並非「在一定期間內新創造」的商品與勞務，因此不計入當年的 GDP（但若有二手商仲介費，則仲介費要計入）。"
+                    },
+                    {
+                        desc: "本島政府編列預算，發給年滿 65 歲以上老人的重陽敬老金",
+                        value: 80,
+                        isGDP: false,
+                        reason: "不計入。這屬於政府的「轉移性支付」，政府只是把錢從納稅人手中轉交給老人，老人並沒有提供對等的生產勞務，因此不能計入 GDP（不算在政府支出 G 裡）。"
+                    },
+                    {
+                        desc: "波蘭外籍英語老師在本島合法補習班任教所獲得的薪水",
+                        value: 120,
+                        isGDP: true,
+                        reason: "計入。GDP 是屬地主義（常住境內）。雖然該名老師是外籍人士，但他是在本島境內提供教學勞務並獲得薪水，屬於本島創造的最終價值，計入本島 GDP。"
+                    },
+                    {
+                        desc: "島民阿華去夜市買鹹酥雞，老闆沒有開立統一發票",
+                        value: 5,
+                        isGDP: false,
+                        reason: "不計入。這屬於典型的「地下經濟（攤販、無發票交易）」。由於未向政府申報、沒有發票憑證，統計人員無法監測到這筆交易，因而無法納入官方的 GDP 統計。"
+                    },
+                    {
+                        desc: "島民阿強在證券交易所買進 50 萬元台積電股票",
+                        value: 50,
+                        isGDP: false,
+                        reason: "不計入。股票與債券等金融資產的買賣，僅是資金所有權的移轉與財產權的重組，並沒有在實體經濟中「新生產」任何最終商品或勞務，因此不計入 GDP。"
+                    }
+                ]
+            },
+
+            // 第二關數據
+            l2: {
+                familyFunds: 1000,
+                gdp: 0,
+                expenditure: 0,
+                income: 0,
+                // 細項
+                c: 0,
+                i: 0,
+                g: 0,
+                xm: 0,
+                wage: 0,
+                profit: 0,
+                rent: 0,
+                tax: 0,
+                // 計時器
+                timeLeft: 45,
+                timerInterval: null
+            },
+
+            // 第三關數據
+            l3: {
+                exportCount: 0,
+                gdp: 1200,
+                timeLeft: 15,
+                timerInterval: null,
+                isExplosion: false
+            }
+        };
+
+        // --- 核心工具：切換畫面 ---
+        function switchScreen(screenId) {
+            // 隱藏所有畫面
+            document.getElementById('screen-welcome').classList.add('hidden');
+            document.getElementById('screen-level1').classList.add('hidden');
+            document.getElementById('screen-level2').classList.add('hidden');
+            document.getElementById('screen-level3').classList.add('hidden');
+            document.getElementById('screen-report').classList.add('hidden');
+
+            // 顯示指定畫面
+            document.getElementById(`screen-${screenId}`).classList.remove('hidden');
+            state.currentScreen = screenId;
+
+            // 更新頂部導覽列狀態
+            const badge = document.getElementById('current-phase-badge');
+            if (screenId === 'welcome') {
+                badge.innerText = "準備階段";
+                badge.className = "bg-slate-800 text-indigo-400 font-mono font-bold px-3 py-1 rounded-md text-sm";
+            } else if (screenId === 'level1') {
+                badge.innerText = "第一關：定義辨析";
+                badge.className = "bg-indigo-950 text-indigo-300 border border-indigo-800 px-3 py-1 rounded-md text-sm";
+            } else if (screenId === 'level2') {
+                badge.innerText = "第二關：雙面天平";
+                badge.className = "bg-amber-950 text-amber-300 border border-amber-800 px-3 py-1 rounded-md text-sm";
+            } else if (screenId === 'level3') {
+                badge.innerText = "第三關：黑天鵝";
+                badge.className = "bg-rose-950 text-rose-300 border border-rose-800 px-3 py-1 rounded-md text-sm";
+            } else if (screenId === 'report') {
+                badge.innerText = "最終報告與反思";
+                badge.className = "bg-emerald-950 text-emerald-300 border border-emerald-800 px-3 py-1 rounded-md text-sm";
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // --- 自訂 Toast 訊息盒 (無阻礙) ---
+        function showToast(title, body, type = 'info') {
+            const toast = document.getElementById('toast-message');
+            const toastTitle = document.getElementById('toast-title');
+            const toastBody = document.getElementById('toast-body');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastTitle.innerText = title;
+            toastBody.innerText = body;
+
+            // 樣式調整
+            toast.className = "fixed bottom-6 right-6 z-50 glass-panel p-4 rounded-xl shadow-2xl max-w-sm border-l-4 transition-all duration-300 translate-y-0 opacity-100";
+            if (type === 'success') {
+                toast.classList.add('border-emerald-500');
+                toastIcon.className = "text-emerald-400 text-xl";
+                toastIcon.innerHTML = `<i class="fa-solid fa-circle-check"></i>`;
+            } else if (type === 'error') {
+                toast.classList.add('border-rose-500');
+                toastIcon.className = "text-rose-400 text-xl";
+                toastIcon.innerHTML = `<i class="fa-solid fa-triangle-exclamation animate-bounce"></i>`;
+            } else {
+                toast.classList.add('border-indigo-500');
+                toastIcon.className = "text-indigo-400 text-xl";
+                toastIcon.innerHTML = `<i class="fa-solid fa-bell"></i>`;
+            }
+
+            // 自動消失
+            setTimeout(() => {
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 3500);
+        }
+
+        // --- 全域數值更新 (更新頂部) ---
+        function updateGlobalIndicators() {
+            // 確保幸福度與汙染度在 0-100 間
+            state.happiness = Math.max(0, Math.min(100, state.happiness));
+            state.pollution = Math.max(0, Math.min(100, state.pollution));
+
+            // 更新 DOM
+            document.getElementById('header-happiness-bar').style.width = `${state.happiness}%`;
+            document.getElementById('header-happiness-val').innerText = `${state.happiness}%`;
+            document.getElementById('header-pollution-bar').style.width = `${state.pollution}%`;
+            document.getElementById('header-pollution-val').innerText = `${state.pollution}%`;
+
+            // 根據數據調整顏色
+            const hapVal = document.getElementById('header-happiness-val');
+            if (state.happiness < 30) {
+                hapVal.className = "font-bold text-rose-500";
+            } else if (state.happiness < 60) {
+                hapVal.className = "font-bold text-amber-500";
+            } else {
+                hapVal.className = "font-bold text-emerald-400";
+            }
+        }
+
+        // --- 遊戲開始 ---
+        function startGame() {
+            resetState();
+            switchScreen('level1');
+            loadL1Question();
+        }
+
+        function resetState() {
+            state.happiness = 80;
+            state.pollution = 10;
+            state.l1.currentIndex = 0;
+            state.l1.gdp = 0;
+            state.l1.correctCount = 0;
+            state.l1.processedCount = 0;
+            
+            state.l2.familyFunds = 1000;
+            state.l2.gdp = 0;
+            state.l2.expenditure = 0;
+            state.l2.income = 0;
+            state.l2.c = 0;
+            state.l2.i = 0;
+            state.l2.g = 0;
+            state.l2.xm = 0;
+            state.l2.wage = 0;
+            state.l2.profit = 0;
+            state.l2.rent = 0;
+            state.l2.tax = 0;
+            state.l2.timeLeft = 45;
+
+            state.l3.exportCount = 0;
+            state.l3.gdp = 1200;
+            state.l3.timeLeft = 15;
+            state.l3.isExplosion = false;
+
+            updateGlobalIndicators();
+        }
+
+        // ==================== 第一關：GDP傳送門 ====================
+        function loadL1Question() {
+            const idx = state.l1.currentIndex;
+            if (idx >= state.l1.questions.length) {
+                // 第一關結束，結算並前往第二關
+                showToast("第一關完成", "你已通過 GDP 資格審查！準備前往更核心的經濟調控關卡。", "success");
+                setTimeout(() => {
+                    initLevel2();
+                }, 1500);
+                return;
+            }
+
+            const q = state.l1.questions[idx];
+            document.getElementById('l1-progress-num').innerText = idx + 1;
+            document.getElementById('l1-card-desc').innerText = q.desc;
+            document.getElementById('l1-card-value').innerText = `$${q.value} 億`;
+            
+            // 決定卡片標籤分類
+            const tags = ["生產地辨析", "非市場交易", "資本形成", "二手轉移", "政府支出", "常住居民", "地下經濟", "金融交易"];
+            document.getElementById('l1-concept-tag').innerText = tags[idx] || "定義辨析";
+        }
+
+        function submitL1Decision(playerSaysGDP) {
+            const idx = state.l1.currentIndex;
+            const q = state.l1.questions[idx];
+            const isCorrect = (playerSaysGDP === q.isGDP);
+
+            const card = document.getElementById('l1-ball-card');
+            const mainPanel = document.getElementById('l1-main-panel');
+
+            state.l1.processedCount++;
+
+            if (isCorrect) {
+                // 答對了
+                state.l1.correctCount++;
+                state.l1.gdp += q.value;
+                
+                // 動態效果：綠色閃爍
+                mainPanel.classList.add('success-flash-active');
+                setTimeout(() => {
+                    mainPanel.classList.remove('success-flash-active');
+                }, 600);
+
+                showToast("答對了！", `成功正確分類本筆經濟活動！GDP +$${q.value}億`, "success");
+                
+                // 更新第一關看板數值
+                updateL1Counters();
+                
+                // 前往下一題
+                state.l1.currentIndex++;
+                setTimeout(() => {
+                    loadL1Question();
+                }, 1000);
+
+            } else {
+                // 答錯了，扣幸福度，顯示解析
+                state.happiness -= 15;
+                updateGlobalIndicators();
+
+                // 震動效果
+                card.classList.add('shake-effect');
+                setTimeout(() => {
+                    card.classList.remove('shake-effect');
+                }, 500);
+
+                showL1Explanation(q, false);
+            }
+        }
+
+        function updateL1Counters() {
+            document.getElementById('l1-gdp-val').innerText = `$${state.l1.gdp} 億`;
+            document.getElementById('l1-processed').innerText = `${state.l1.processedCount}/8`;
+            const acc = Math.round((state.l1.correctCount / state.l1.processedCount) * 100);
+            document.getElementById('l1-accuracy').innerText = `${acc}%`;
+        }
+
+        function showL1Explanation(question, autoCorrect) {
+            const modal = document.getElementById('l1-explanation-modal');
+            const iconContainer = document.getElementById('l1-modal-icon-container');
+            const title = document.getElementById('l1-modal-title');
+            const text = document.getElementById('l1-modal-text');
+
+            modal.classList.remove('hidden');
+
+            iconContainer.className = "w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center text-3xl bg-rose-950 text-rose-400 border border-rose-800";
+            iconContainer.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i>`;
+            title.innerText = "答錯囉！公民知識點醒思";
+            title.className = "text-xl font-bold mb-2 text-rose-400";
+            
+            text.innerHTML = `
+                <div class="text-left space-y-2">
+                    <p class="text-slate-100 font-bold">● 事件：${question.desc}</p>
+                    <p class="text-emerald-400 font-bold">● 正確答案：${question.isGDP ? "【計入 GDP】" : "【不計入 GDP】"}</p>
+                    <p class="text-slate-300 text-xs leading-relaxed bg-slate-950 p-3 rounded-lg border border-slate-800 mt-2">${question.reason}</p>
+                </div>
+            `;
+        }
+
+        function dismissL1Explanation() {
+            document.getElementById('l1-explanation-modal').classList.add('hidden');
+            updateL1Counters();
+            state.l1.currentIndex++;
+            loadL1Question();
+        }
+
+
+        // ==================== 第二關：經濟大雙拼 ====================
+        function initLevel2() {
+            switchScreen('level2');
+            state.l2.timeLeft = 45;
+            
+            // 將第一關累積的 GDP 作為本關的基礎，並重設天平
+            state.l2.gdp = 0;
+            state.l2.familyFunds = 1000 + (state.l1.gdp); // 獎勵機制：第一關答對愈多，初始資金愈多
+
+            updateL2UI();
+            startL2Timer();
+            showToast("任務啟動", "平衡支出面與所得面，注意家庭儲蓄不可低於 0！", "info");
+        }
+
+        function startL2Timer() {
+            if (state.l2.timerInterval) clearInterval(state.l2.timerInterval);
+            
+            state.l2.timerInterval = setInterval(() => {
+                state.l2.timeLeft--;
+                document.getElementById('l2-timer').innerText = state.l2.timeLeft;
+
+                if (state.l2.timeLeft <= 0) {
+                    clearInterval(state.l2.timerInterval);
+                    checkL2GameStatus();
+                }
+            }, 1000);
+        }
+
+        function triggerL2Action(actionType) {
+            if (state.l2.timeLeft <= 0) return;
+
+            const audioSuccess = () => showToast("經濟運作", "操作成功！兩大帳戶即時連動調整。", "success");
+
+            if (actionType === 'consumption') {
+                if (state.l2.familyFunds < 50) {
+                    showToast("資金不足", "家庭可支配儲蓄耗盡！請企業先發工資給家庭！", "error");
+                    return;
+                }
+                state.l2.familyFunds -= 50;
+                // 支出面：民間消費 C + 50
+                state.l2.c += 50;
+                // 所得面：企業賺到利潤(營業盈餘) + 50
+                state.l2.profit += 50;
+
+                audioSuccess();
+            } 
+            else if (actionType === 'salary') {
+                // 企業發薪 100
+                // 企業通常從利潤中支付，這裡將這筆資金 100 迴流家庭儲蓄
+                state.l2.familyFunds += 100;
+                // 所得面：受雇人員報酬(工資) + 100
+                state.l2.wage += 100;
+                // 此處為了體現一條龍流程：
+                // 企業發薪反映在所得面，而在支出面反映在「這筆勞動力轉化為新生產的存貨或研發投資(I) + 100」
+                state.l2.i += 100;
+
+                audioSuccess();
+            } 
+            else if (actionType === 'infra') {
+                if (state.l2.familyFunds < 300) {
+                    showToast("資金不足", "國家無足夠資金啟動大型基建計畫！", "error");
+                    return;
+                }
+                state.l2.familyFunds -= 300;
+                // 支出面：政府支出 G + 300
+                state.l2.g += 300;
+                // 所得面：承包工程的企業與勞工分得利潤與工資、政府抽間接稅
+                state.l2.wage += 150;
+                state.l2.profit += 100;
+                state.l2.tax += 50;
+
+                audioSuccess();
+            }
+
+            // 更新並重新計算 GDP
+            recalculateL2();
+        }
+
+        function recalculateL2() {
+            // 支出面加總 = C + I + G + (X - M)
+            state.l2.expenditure = state.l2.c + state.l2.i + state.l2.g + state.l2.xm;
+            
+            // 所得面加總 = 工資 + 利潤 + 租金/利息 + 折舊/間接稅
+            state.l2.income = state.l2.wage + state.l2.profit + state.l2.rent + state.l2.tax;
+
+            // 總體實質 GDP 呈現
+            state.l2.gdp = Math.max(state.l2.expenditure, state.l2.income);
+
+            updateL2UI();
+        }
+
+        function updateL2UI() {
+            document.getElementById('l2-family-funds').innerText = `$${state.l2.familyFunds}`;
+            document.getElementById('l2-total-gdp').innerText = `$${state.l2.gdp}`;
+
+            // 細項數據對應
+            document.getElementById('val-c').innerText = `$${state.l2.c}`;
+            document.getElementById('val-i').innerText = `$${state.l2.i}`;
+            document.getElementById('val-g').innerText = `$${state.l2.g}`;
+            document.getElementById('val-xm').innerText = `$${state.l2.xm}`;
+
+            document.getElementById('val-wage').innerText = `$${state.l2.wage}`;
+            document.getElementById('val-profit').innerText = `$${state.l2.profit}`;
+            document.getElementById('val-rent').innerText = `$${state.l2.rent}`;
+            document.getElementById('val-tax').innerText = `$${state.l2.tax}`;
+
+            // 動態長條圖高度調整
+            const maxBarValue = 1500; // 最大刻度對比
+            const expHeight = Math.min(100, (state.l2.expenditure / maxBarValue) * 100);
+            const incHeight = Math.min(100, (state.l2.income / maxBarValue) * 100);
+
+            document.getElementById('bar-expenditure').style.height = `${expHeight}%`;
+            document.getElementById('bar-exp-value').innerText = `$${state.l2.expenditure}`;
+
+            document.getElementById('bar-income').style.height = `${incHeight}%`;
+            document.getElementById('bar-inc-value').innerText = `$${state.l2.income}`;
+
+            // 如果兩者完美平衡，則高亮提示
+            const expBar = document.getElementById('bar-expenditure');
+            const incBar = document.getElementById('bar-income');
+            if (state.l2.expenditure > 0 && state.l2.expenditure === state.l2.income) {
+                expBar.className = "w-16 md:w-24 bg-gradient-to-t from-emerald-600 to-emerald-500 rounded-t-lg transition-all duration-300 relative group flex items-end justify-center";
+                incBar.className = "w-16 md:w-24 bg-gradient-to-t from-emerald-600 to-emerald-500 rounded-t-lg transition-all duration-300 relative group flex items-end justify-center";
+            } else {
+                expBar.className = "w-16 md:w-24 bg-gradient-to-t from-blue-600 to-indigo-500 rounded-t-lg transition-all duration-300 relative group flex items-end justify-center";
+                incBar.className = "w-16 md:w-24 bg-gradient-to-t from-amber-600 to-amber-500 rounded-t-lg transition-all duration-300 relative group flex items-end justify-center";
+            }
+        }
+
+        function checkL2GameStatus() {
+            if (state.l2.expenditure === state.l2.income && state.l2.gdp > 0) {
+                // 通關成功
+                showToast("完美天平！", "所得與支出帳戶完美吻合，恆等式成立！", "success");
+                setTimeout(() => {
+                    initLevel3();
+                }, 2000);
+            } else {
+                // 未能平衡，但看在教學份上引導玩家：提示對齊，或者直接通融過關以利體驗故事
+                if (state.l2.gdp === 0) {
+                    showToast("經濟停擺！", "你沒有發動任何經濟決策！讓我們重新整理經濟再試一次。", "error");
+                    state.l2.timeLeft = 30;
+                    startL2Timer();
+                } else {
+                    showToast("天平有些微失衡！", "別擔心，這反映了統計實務上的『統計差異』。我們將為你強制對齊，前往下一關！", "info");
+                    setTimeout(() => {
+                        initLevel3();
+                    }, 3000);
+                }
+            }
+        }
+
+
+        // ==================== 第三關：黑天鵝事件 ====================
+        function initLevel3() {
+            switchScreen('level3');
+            state.l3.timeLeft = 15;
+            state.l3.exportCount = 0;
+            state.l3.gdp = 1200 + state.l2.gdp; // 繼承上一關的實力
+
+            updateL3UI();
+            startL3Timer();
+            showToast("紅色警報", "隔壁發生重大水災！瘋狂點擊出口抽水機，衝高島嶼 GDP 吧！", "error");
+        }
+
+        function startL3Timer() {
+            if (state.l3.timerInterval) clearInterval(state.l3.timerInterval);
+
+            state.l3.timerInterval = setInterval(() => {
+                state.l3.timeLeft--;
+                document.getElementById('l3-timer').innerText = `${state.l3.timeLeft}s`;
+
+                // 汙染與幸福度隨著點擊和時間推進悄悄產生巨變
+                state.pollution += 2; // 隨著時間推移工廠重污染
+                state.happiness -= 1; // 勞工漸漸疲憊
+
+                updateGlobalIndicators();
+
+                if (state.l3.timeLeft <= 0) {
+                    clearInterval(state.l3.timerInterval);
+                    finishGame();
+                }
+            }, 1000);
+        }
+
+        function clickExportPump() {
+            if (state.l3.timeLeft <= 0) return;
+
+            state.l3.exportCount += 50;
+            state.l3.gdp += 50;
+
+            // 環境汙染度暴漲，幸福度急遽下降
+            state.pollution += 3;
+            state.happiness -= 2;
+
+            updateGlobalIndicators();
+            updateL3UI();
+
+            // 震動、爆發微小粒子視覺特效 (透過控制台背景顏色微閃)
+            const gdpBarVal = document.getElementById('l3-gdp-bar-val');
+            gdpBarVal.classList.add('scale-110', 'text-rose-400');
+            setTimeout(() => {
+                gdpBarVal.classList.remove('scale-110', 'text-rose-400');
+            }, 80);
+        }
+
+        function updateL3UI() {
+            document.getElementById('l3-export-counter').innerText = `$${state.l3.exportCount} 億`;
+            document.getElementById('l3-gdp-counter').innerText = `$${state.l3.gdp} 億`;
+            document.getElementById('l3-pollution-counter').innerText = `${state.pollution}%`;
+
+            // 長條圖更新 (最大值設 3500)
+            const maxBarValue = 3500;
+            const barHeight = Math.min(100, (state.l3.gdp / maxBarValue) * 100);
+            document.getElementById('l3-gdp-bar').style.height = `${barHeight}%`;
+            document.getElementById('l3-gdp-bar-val').innerText = `$${state.l3.gdp} 億`;
+        }
+
+
+        // ==================== 結算階段 ====================
+        function finishGame() {
+            switchScreen('report');
+            
+            // 寫入最終數值
+            document.getElementById('report-gdp').innerText = `$${state.l3.gdp} 億`;
+            document.getElementById('report-happiness').innerText = `${state.happiness}%`;
+            document.getElementById('report-pollution').innerText = `${state.pollution}%`;
+
+            // 設定圖標與文字
+            const hapIcon = document.getElementById('report-happiness-icon');
+            const hapSub = document.getElementById('report-happiness-sub');
+            const diagnosisText = document.getElementById('report-diagnosis-text');
+
+            if (state.happiness >= 60) {
+                hapIcon.innerHTML = `<i class="fa-solid fa-face-laugh-beam"></i>`;
+                hapIcon.className = "text-emerald-400 text-2xl mb-1";
+                hapSub.className = "text-xxs text-emerald-400 mt-1";
+                hapSub.innerText = "奇蹟！本島在發展經濟之餘維持了優異的生活品質！";
+                
+                diagnosisText.innerHTML = `
+                    恭喜你創造了<strong>高水準且永續發展</strong>的經濟奇蹟！
+                    在面對極端的國際需求（第三關黑天鵝事件）時，你雖然積極出口，但也及時維持了島民的勞動尊嚴，並且未將環境破壞推至極限。
+                    你巧妙地證明了：<b>GDP 的增長不必然需要建立在犧牲環境與剝削休閒的代價上</b>。這是一個近乎完美的永續島嶼楷模！
+                `;
+            } else if (state.happiness >= 30) {
+                hapIcon.innerHTML = `<i class="fa-solid fa-face-meh"></i>`;
+                hapIcon.className = "text-amber-500 text-2xl mb-1";
+                hapSub.className = "text-xxs text-amber-500 mt-1";
+                hapSub.innerText = "島民普遍過勞，累積了不少怨言";
+
+                diagnosisText.innerHTML = `
+                    你的島嶼獲得了【中規中矩】的發展成果。
+                    為了因應黑天鵝風災的突發訂單，你的工廠超時運轉、冒煙排汙，使 GDP 創下亮眼成績，但代價是島民的幸福度大幅縮水、河川與空氣遭受嚴重污染。
+                    這段過程體現了高中公民科所學：<b>GDP 成長指標往往忽視了生產過程所付出的社會代價與環境成本</b>。
+                `;
+            } else {
+                hapIcon.innerHTML = `<i class="fa-solid fa-face-frown"></i>`;
+                hapIcon.className = "text-rose-500 text-2xl mb-1";
+                hapSub.className = "text-xxs text-rose-500 mt-1";
+                hapSub.innerText = "島民過度加班，幸福感完全崩盤";
+
+                diagnosisText.innerHTML = `
+                    你的島嶼獲得了<strong>【慘勝的經濟奇蹟】</strong>！
+                    為了追求極致的 GDP 數據，在風災危機中，你下令全島工廠無休開工、過度排放汙水和廢氣。雖然帳面上的出口額與 GDP 非常耀眼，但你的人民幸福度降至冰點，環境汙染度爆表。
+                    這是一個極端的「以生態與健康換取產值」的典型例子。
+                    這也強力佐證了：<b>GDP 作為一個單一的經濟指標，無法衡量休閒價值、身心健康、環境綠色損失與所得分配狀況</b>。
+                `;
+            }
+        }
+
+        function resetGame() {
+            resetState();
+            switchScreen('welcome');
+        }
+
+        // 頁面加載完成後初始狀態
+        window.onload = function() {
+            resetState();
+        };
+    </script>
+</body>
+</html>
